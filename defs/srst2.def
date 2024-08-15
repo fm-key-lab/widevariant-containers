@@ -1,0 +1,112 @@
+BootStrap: docker
+From: ubuntu:xenial
+
+%environment
+    export LANG=en_US.UTF-8
+    export SRST2_SAMTOOLS=/bin/samtools
+    export SRST2_BOWTIE2=/bin/bowtie2
+    export SRST2_BOWTIE2_BUILD=/bin/bowtie2-build
+
+%post
+    # Set locale
+    apt-get update && apt-get install -y locales
+    locale-gen en_US.UTF-8
+    update-locale LANG=en_US.UTF-8
+
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        g++ \
+        git \
+        libc6-dev \
+        libncurses5-dev \
+        libx11-dev \
+        locate \
+        make \
+        python2.7 \
+        python-scipy \
+        python-biopython \
+        unzip \
+        wget  \
+        xutils-dev \
+        zlib1g-dev && \
+        apt-get install -y \
+        python-pip && \
+    apt-get autoclean && \
+    rm -rf /var/lib/apt/lists/*
+
+    # Install Bowtie2
+    cd /opt
+    wget https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/2.1.0/bowtie2-2.1.0-linux-x86_64.zip
+    unzip bowtie2-2.1.0-linux-x86_64.zip -d /opt/
+    ln -s /opt/bowtie2-2.1.0/bowtie2* /bin/
+    rm -rf /opt/bowtie2-2.1.0-linux-x86_64.zip
+
+    # Install SAMtools v0.1.18
+    cd /opt
+    wget https://sourceforge.net/projects/samtools/files/samtools/0.1.18/samtools-0.1.18.tar.bz2
+    tar -xvjf samtools-0.1.18.tar.bz2
+    cd samtools-0.1.18
+    make
+    # make prefix=/
+    cp samtools /bin/
+    cp misc/maq2sam-long /bin/
+    cp misc/maq2sam-short /bin/
+    cp misc/md5fa /bin/
+    cp misc/md5sum-lite /bin/
+    cp misc/seqtk /bin/
+    cp misc/wgsim /bin/
+    rm -rf /opt/samtools-0.1.18.tar.bz2
+    
+    # Install biopython
+    pip install biopython
+    
+    # Clone and install SRST2
+    cd /opt
+    git clone https://github.com/katholt/srst2
+    pip install ./srst2
+    
+    # Get data
+    mkdir /data
+    # # TODO:
+    # getmlst.py --species "Escherichia coli#1" && \
+    #     wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR024/ERR024070/ERR024070_1.fastq.gz && \
+    #     wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR024/ERR024070/ERR024070_2.fastq.gz && \
+    #     srst2 --input_pe ERR024070*.fastq.gz --output shigella1 --log --save_scores --mlst_db Escherichia_coli#1.fasta --mlst_definitions profiles_csv  --mlst_delimiter '_'  && \
+    #     ls shigella1__ERR024070.Escherichia_coli#1.pileup \
+    #     shigella1__ERR024070.Escherichia_coli#1.scores \
+    #     shigella1__ERR024070.Escherichia_coli#1.sorted.bam \
+    #     shigella1__mlst__Escherichia_coli#1__results.txt \
+
+%runscript
+    echo "LANG: $LANG"
+    echo "SRST2_SAMTOOLS: $SRST2_SAMTOOLS"
+    echo "SRST2_BOWTIE2: $SRST2_BOWTIE2"
+    echo "SRST2_BOWTIE2_BUILD: $SRST2_BOWTIE2_BUILD"
+    exec "$@"
+
+%test
+    srst2 --version
+    getmlst.py -h
+    slurm_srst2.py -h
+
+%labels
+    Author thomas silvers
+    Version v0.0.1
+
+%help
+    Container supporting the WideVariant workflow.
+    
+    This image was built using
+    ```bash
+    time apptainer build --notest --force srst2.sif srst2.def
+    ```
+    
+    which took 6 mins
+    ```
+    real    6m12.009s
+    user    2m56.688s
+    sys     0m13.702s
+    ```
+
+    See https://github.com/t-silvers/widevariant-apptainer/tree/main for more info.

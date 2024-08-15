@@ -1,0 +1,17 @@
+Bootstrap: docker
+From: sangerpathogens/gubbins
+
+%post
+    apt-get update
+    ln -s /usr/bin/python3 /usr/bin/python
+
+%test
+    # find executable
+    run_gubbins.py -h
+    
+    # gubbins tests
+    make check
+
+%help
+    - [docker image](https://hub.docker.com/r/sangerpathogens/gubbins)
+    - [nickjcroucher/gubbins](https://github.com/nickjcroucher/gubbins)

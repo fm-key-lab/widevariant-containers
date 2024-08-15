@@ -1,0 +1,33 @@
+BootStrap: docker
+From: ubuntu:xenial
+
+%environment
+    export LANG=en_US.UTF-8
+
+%post
+    apt-get update && \
+    apt-get install -y \
+        default-jre \
+        locales \
+        perl \
+        unzip \
+        wget && \
+    
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8 && \
+
+    wget https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.12.1.zip && \
+    unzip fastqc_v0.12.1.zip -d /opt && \
+    ln -s /opt/FastQC/fastqc /bin/fastqc && \
+    rm -rf fastqc_v0.12.1.zip
+
+%test
+    fastqc --version
+
+%labels
+    Author thomas silvers
+    Version v0.0.1
+
+%help
+    https://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqc
+    https://raw.githubusercontent.com/s-andrews/FastQC/master/INSTALL.txt

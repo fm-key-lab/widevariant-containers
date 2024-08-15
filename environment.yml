@@ -1,0 +1,33 @@
+name: widevariant
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bakta
+  - bamaddrg
+  - biopython
+  - bowtie2
+  - cutadapt
+  - freebayes
+  - ipykernel
+  - ipython
+  - ipywidgets
+  - jupyter
+  - jupyterlab
+  - matplotlib
+  - numpy
+  - openpyxl
+  - pandas
+  - pip
+  - pyarrow
+  - python>=3.12
+  - requests
+  - scipy
+  - seaborn
+  - snakemake>=8.0
+  - snakemake-wrapper-utils
+  - pip:
+    - duckdb
+    - requests-cache
+    - snakemake-executor-plugin-slurm

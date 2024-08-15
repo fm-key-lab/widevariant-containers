@@ -1,0 +1,9 @@
+Bootstrap: docker
+From: multiqc/multiqc
+
+%post
+    apt-get update && apt-get install -y python3-pip
+    ln -s /bin/python3 /bin/python
+    # TODO: Need more recent smk for wrapper
+    pip3 install snakemake
+    pip3 install snakemake_wrapper_utils

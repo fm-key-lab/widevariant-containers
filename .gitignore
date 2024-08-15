@@ -1,0 +1,4 @@
+*.sif
+*dev*
+spades_test
+*.img
