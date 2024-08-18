@@ -1,4 +1,4 @@
 *.sif
-*dev*
+*_dev*
 spades_test
 *.img

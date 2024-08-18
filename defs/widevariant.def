@@ -1,0 +1,176 @@
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    environment.yml /environment.yml
+    /u/thosi/dev/projects/widevariant_utils /opt/widevariant_utils
+
+%environment
+    export PATH="${MAMBA_ROOT_PREFIX}/bin:/opt/SPAdes-4.0.0-Linux/bin:$PATH"
+    export KRAKEN2_DIR=/opt/kraken2
+    export KRAKENUNIQ_DIR=/opt/krakenuniq
+
+%post -c /bin/bash
+    set -e
+
+    # TODO: Remove `build-essential` or remove things encompassed by it
+    apt-get -y update
+    apt-get -y install \
+        bc \
+        bzip2 \
+        cmake \
+        default-jdk \
+        g++ \
+        gcc \
+        gfortran \
+        git \
+        gradle \
+        libbz2-dev \
+        liblzma-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        libvcflib-tools \
+        meson \
+        make \
+        ninja-build \
+        parallel \
+        unzip \
+        vcftools \
+        wget \
+        zlib1g-dev
+    apt-get --no-install-recommends install -y r-base
+
+    micromamba install -y -n base -f /environment.yml
+    micromamba clean --all -y
+
+    # Test installation of micromamba
+    /usr/local/bin/_entrypoint.sh micromamba info
+    
+    # Test pip
+    /opt/conda/bin/pip --version
+    
+    # Install custom utils
+    cd /opt/widevariant_utils && \
+      /opt/conda/bin/pip install -e .
+
+    # Install sickle
+    cd /opt
+    git clone https://github.com/najoshi/sickle.git
+    cd sickle
+    make
+    mv sickle /bin/
+
+    # NOTE: Kraken2 and KrakenUniq install scripts with the same name, creating 
+    #       namespace conflicts unless separate installation directories are used.
+    #       
+    #       Bracken requirements are satisfied by either, but will
+    #         - default to kraken2 (can override with KTYPE, `-y`)
+    #         - default to kraken/kraken-build in same dir (can override with KINSTALL, `-x`)
+    #
+    #       Replace with [KrakenTools](https://github.com/jenniferlu717/KrakenTools)?
+    #
+    
+    export KRAKEN2_DIR=/opt/kraken2
+    export KRAKENUNIQ_DIR=/opt/krakenuniq
+    mkdir -p $KRAKEN2_DIR $KRAKENUNIQ_DIR
+
+    # Install kraken2
+    cd /opt
+    git clone https://github.com/DerrickWood/kraken2.git
+    mv kraken2 kraken2-2.1.3
+    cd kraken2-2.1.3/
+    ./install_kraken2.sh $KRAKEN2_DIR
+    mv $KRAKEN2_DIR/kraken2{,-build,-inspect} /bin/
+    rm -rf /opt/kraken2-2.1.3
+    
+    # Install KrakenUniq
+    cd /opt
+    wget https://github.com/fbreitwieser/krakenuniq/archive/refs/tags/v1.0.4.tar.gz
+    tar xzf v1.0.4.tar.gz
+    cd krakenuniq-1.0.4
+    ./install_krakenuniq.sh $KRAKENUNIQ_DIR
+    mv $KRAKENUNIQ_DIR/krakenuniq{,-build,-download,-extract-reads,-filter,-mpa-report,-report,-translate} /bin/
+    rm -rf /opt/v1.0.4.tar.gz
+    
+    # Install Bracken
+    cd /opt
+    git clone https://github.com/jenniferlu717/Bracken.git
+    cd Bracken/
+    ./install_bracken.sh
+    mv /opt/Bracken/bracken{,-build} /bin/
+
+    # Install SPAdes
+    cd /opt
+    wget https://github.com/ablab/spades/releases/download/v4.0.0/SPAdes-4.0.0-Linux.tar.gz
+    tar -xzf SPAdes-4.0.0-Linux.tar.gz
+    cd SPAdes-4.0.0-Linux/bin/
+    rm -rf /opt/SPAdes-4.0.0-Linux.tar.gz
+
+    # Install samtools, bcftools, htslib
+    for tool in samtools bcftools htslib; do
+        cd /opt
+        wget https://github.com/samtools/${tool}/releases/download/1.20/${tool}-1.20.tar.bz2
+        tar xjf ${tool}-1.20.tar.bz2
+        cd ${tool}-1.20
+        ./configure --prefix=/
+        make
+        make install
+        rm -rf /opt/${tool}-1.20.tar.bz2
+    done
+
+    # Install picard
+    cd /opt
+    git clone https://github.com/broadinstitute/picard.git
+    cd picard/
+    ./gradlew shadowJar
+
+    # Create wrapper script
+    echo '#!/bin/bash' > /bin/picard
+    echo 'java -jar /opt/picard/build/libs/picard.jar "$@"' >> /bin/picard
+    chmod +x /bin/picard
+
+%runscript
+    #!/bin/bash
+
+    source /usr/local/bin/_activate_current_env.sh
+    exec /usr/local/bin/_entrypoint.sh "$@"
+
+%test
+    bcftools --version
+    bowtie2 --version
+    bracken -v
+    cutadapt --version
+    kraken2 --version
+    kraken2-build --version
+    kraken2-inspect --version
+    krakenuniq --version
+    krakenuniq-build --version
+    picard MarkDuplicates -h
+    pigz --version
+    samtools --version
+    sickle --version
+    spades.py --version
+    spades.py --test && rm -rf spades_test
+    tabix --version
+    widevariant_utils --version
+
+%labels
+    Author thomas silvers
+    Version v0.0.1
+
+%help
+    Container supporting the WideVariant workflow.
+    
+    This image was built using
+    ```bash
+    time apptainer build --notest --force widevariant.sif widevariant.def
+    ```
+    
+    which took 55 mins
+    ```
+    real    54m48.486s
+    user    41m54.171s
+    sys     3m6.204s
+    ```
+
+    See https://github.com/t-silvers/widevariant-apptainer/tree/main for more info.
